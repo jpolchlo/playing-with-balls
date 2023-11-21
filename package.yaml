@@ -1,12 +1,11 @@
-name:                playing-with-my-balls
+name:                playing-with-balls
 version:             0.1.0.0
-github:              "jpolchlo/playing-with-my-balls"
+github:              "jpolchlo/playing-with-balls"
 license:             BSD-3-Clause
 author:              "jpolchlo"
 
 extra-source-files:
 - README.md
-- CHANGELOG.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -40,7 +39,7 @@ library:
   source-dirs: src
 
 executables:
-  playing-with-my-balls-exe:
+  playing-with-balls-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -48,10 +47,10 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - playing-with-my-balls
+    - playing-with-balls
 
 tests:
-  playing-with-my-balls-test:
+  playing-with-balls-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -59,4 +58,4 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - playing-with-my-balls
+    - playing-with-balls

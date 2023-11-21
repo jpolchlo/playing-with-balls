@@ -1,4 +1,4 @@
-module FRP.PlayingWithMyBalls
+module FRP.PlayingWithBalls
     ( someFunc
     ) where
 

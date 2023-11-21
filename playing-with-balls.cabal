@@ -4,13 +4,13 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 77fe5812d6d6a7bb756c9249e74b258f542a5caf3200ab29ada8c2bd593af999
+-- hash: 658b8d906b23ded90c07c0408f7b5874b69f8564539e1520786919c237e76624
 
-name:           playing-with-my-balls
+name:           playing-with-balls
 version:        0.1.0.0
 description:    A simple simulation to learn FRP with Netwire
-homepage:       https://github.com/jpolchlo/playing-with-my-balls#readme
-bug-reports:    https://github.com/jpolchlo/playing-with-my-balls/issues
+homepage:       https://github.com/jpolchlo/playing-with-balls#readme
+bug-reports:    https://github.com/jpolchlo/playing-with-balls/issues
 author:         jpolchlo
 maintainer:     jpolchlo
 license:        BSD-3-Clause
@@ -18,17 +18,16 @@ license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
-    CHANGELOG.md
 
 source-repository head
   type: git
-  location: https://github.com/jpolchlo/playing-with-my-balls
+  location: https://github.com/jpolchlo/playing-with-balls
 
 library
   exposed-modules:
       FRP.PlayingWithMyBalls
   other-modules:
-      Paths_playing_with_my_balls
+      Paths_playing_with_balls
   hs-source-dirs:
       src
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
@@ -42,10 +41,10 @@ library
     , transformers >=0.5
   default-language: Haskell2010
 
-executable playing-with-my-balls-exe
+executable playing-with-balls-exe
   main-is: Main.hs
   other-modules:
-      Paths_playing_with_my_balls
+      Paths_playing_with_balls
   hs-source-dirs:
       app
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
@@ -56,15 +55,15 @@ executable playing-with-my-balls-exe
     , lens >=5.2
     , linear >=1.18
     , netwire >=5
-    , playing-with-my-balls
+    , playing-with-balls
     , transformers >=0.5
   default-language: Haskell2010
 
-test-suite playing-with-my-balls-test
+test-suite playing-with-balls-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Paths_playing_with_my_balls
+      Paths_playing_with_balls
   hs-source-dirs:
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
@@ -75,6 +74,6 @@ test-suite playing-with-my-balls-test
     , lens >=5.2
     , linear >=1.18
     , netwire >=5
-    , playing-with-my-balls
+    , playing-with-balls
     , transformers >=0.5
   default-language: Haskell2010

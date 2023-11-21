@@ -5,7 +5,7 @@
 
 module Main (main) where
 
---import FRP.PlayingWithMyBalls
+--import FRP.PlayingWithBalls
 import Control.Lens
 import Control.Monad (liftM)
 import Control.Wire
