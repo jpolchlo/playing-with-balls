@@ -1,9 +1,9 @@
+{-# LANGUAGE Arrows #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE Arrows #-}
 
 module Main (main) where
 
@@ -20,6 +20,27 @@ import qualified Graphics.Gloss.Interface.IO.Game as Gloss
 import qualified System.Exit as System
 
 type a ->> b = SF a b
+
+data PrivateState = PrivateState
+  { _mass :: !(Float)
+  , _position  :: !(V2 Float)
+  , _velocity  :: !(V2 Float)
+  }
+  deriving Show
+
+makeLenses ''PrivateState
+
+type PublicState = (Float, V2 Float)
+
+observeBall :: PrivateState -> PublicState
+observeBall st = (view mass st, view position st)
+
+data Ball = Ball
+  { state      :: PrivateState
+  , outChannel :: PublicState
+  , inChannels :: [PublicState]
+  }
+  deriving Show
 
 data State = State
   { _pos :: !(V2 Float)
@@ -101,6 +122,46 @@ simpleOrbit st0 = proc _ -> do
   where
     x0 = view pos st0 :: V2 Float
     v0 = view vel st0 :: V2 Float
+
+gravity :: PublicState -> PublicState -> V2 Float
+gravity (_, x0) (m1, x1) = accel *^ diff
+  where
+    g = 6.673e-11 :: Float
+    diff = x1 - x0
+    accel = g * m1 / norm diff ** 2
+
+adjustOneBall :: (PrivateState, [PublicState]) ->> PrivateState
+adjustOneBall = proc (me, them) -> do
+  let
+    accel = foldl (+) (V2 0 0) $ map (gravity $ observeBall me) them
+    currX = _position me
+    currV = _velocity me
+  nextV <- accum' (\dt (v, a) -> v + dt *^ a) -< (currV, accel)
+  nextX <- accum' (\dt (x, v) -> x + dt *^ v) -< (currX, currV)
+  let st' = PrivateState { _mass = view mass me, _position = nextX, _velocity = nextV }
+  returnA -< st'
+
+accum :: HasTime t s => (t -> b -> a -> b) -> b -> Wire s e m a b
+accum f b = mkSF $ \s a ->
+  let b' = f (dtime s) b a
+  in  (b', accum f b')
+
+accum' :: HasTime t s => (t -> a -> b) -> Wire s e m a b
+accum' f = mkSF $ \s x ->
+  let next = f (dtime s) x
+  in (next, accum' f)
+
+-- constM :: Monad m => m b -> Wire s e m a b
+-- constM m = mkGen_ . const $ liftM Right m
+
+select :: (Monoid s, Monad m)
+  => Wire s e m a (Either (Wire s e m a b) b) -> Wire s e m a b
+select w = mkGen $ \s a -> do
+  (eb, w') <- stepWire w s (Right a)
+  case eb of
+    Right (Left w'') -> stepWire w'' mempty (Right a)
+    Right (Right b)  -> return (Right b, select w')
+    Left e           -> return (Left e, select w')
 
 pic :: State -> Gloss.Picture
 pic State{..} = Gloss.pictures $
