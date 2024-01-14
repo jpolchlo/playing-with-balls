@@ -1,5 +1,7 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE Arrows #-}
 
@@ -7,9 +9,8 @@ module Main (main) where
 
 --import FRP.PlayingWithBalls
 import Control.Lens
-import Control.Monad (liftM)
-import Control.Wire
-import qualified Data.Set as Set
+import Data.IORef (IORef, newIORef, readIORef, writeIORef)
+import FRP.Yampa
 import Linear
 import Prelude hiding (id, (.))
 import qualified Graphics.Gloss as Gloss
@@ -18,43 +19,59 @@ import qualified Graphics.Gloss.Interface.IO.Game as Gloss
 
 import qualified System.Exit as System
 
-type a ->> b = Wire (Timed Float ()) () Identity a b
+type a ->> b = SF a b
 
 data State = State
   { _pos :: !(V2 Float)
   , _vel :: !(V2 Float)
   }
+  deriving Show
 
 data World = World
-  { _worldWire :: () ->> Gloss.Picture
+  { _worldWire :: ReactHandle () State
   , _worldViewport :: Gloss.ViewPort
-  , _worldPic :: Gloss.Picture
+  , _worldState :: IORef State
   , _terminateRun :: Bool
   }
 
 makeLenses ''State
 makeLenses ''World
 
+instance RealFloat a => VectorSpace (V2 a) a where
+  zeroVector = Linear.zero
+  (*^) = (Linear.*^)
+  (^+^) = (Linear.^+^)
+  dot v1 v2 = sum $ v1 * v2
+
 fps :: Int
 fps = 60
 
 main :: IO ()
-main = Gloss.playIO disp Gloss.black fps world render handleEvent step
+main = do
+  stateRef <- newIORef $ State { _pos = zero, _vel = zero }
+  rh <- reactInit (return ()) (actuate stateRef) stateEvolution
+  world0 <- return $ set worldWire rh $ world stateRef
+  Gloss.playIO disp Gloss.black fps world0 render handleEvent step
   where
-    disp = Gloss.InWindow "spanout" winSize (0, 0)
+    disp = Gloss.InWindow "one ball" winSize (0, 0)
     winSize = (512, 512)
-    world = World
-      { _worldWire     = simulate $ State { _pos = V2 1.0 0.0, _vel = V2 0.1 1.1 }
-      , _worldPic      = Gloss.blank
+    stateEvolution = simpleOrbit $ State { _pos = V2 1.0 0.0, _vel = V2 0.0 1.0 }
+    actuate ref _ _ st = do
+      writeIORef ref st
+      return True
+    world ref = World
+      { _worldWire     = undefined
+      , _worldState    = ref
       , _worldViewport = viewPort winSize
       , _terminateRun  = False
       }
 
 render :: World -> IO Gloss.Picture
-render world = return $ Gloss.applyViewPortToPicture vp pic
+render world = do
+  state <- readIORef $ view worldState world
+  return $ Gloss.applyViewPortToPicture vp $ pic state
   where
     vp = view worldViewport world
-    pic = view worldPic world
 
 handleEvent :: Gloss.Event -> World -> IO World
 handleEvent (Gloss.EventResize wh) world =
@@ -65,23 +82,25 @@ handleEvent _ world = return world
 
 step :: Float -> World -> IO World
 step delta world = case view terminateRun world of
-  False -> return $ set worldWire wire' $ set worldPic pic world
+  False -> do
+    _ <- react rh increment
+    return world
   True  -> System.exitSuccess
   where
-    timed = Timed delta ()
-    input = Right ()
-    mb = stepWire (view worldWire world) timed input
-    (Right pic, wire') = runIdentity mb
+    rh = view worldWire world
+    increment = (realToFrac delta, Nothing)
 
-simulate :: State -> a ->> Gloss.Picture
-simulate st0 = select $ proc _ -> do
+simpleOrbit :: State -> a ->> State
+simpleOrbit st0 = proc _ -> do
   rec
-    prevX <- delay $ view pos st0 -< currX
-    prevV <- delay $ view vel st0 -< currV
-    currX <- accum (\dt x v -> x + dt *^ v) $ view pos st0 -< prevV
-    currV <- accum (\dt v a -> v + dt *^ (normalize a)) $ view vel st0 -< -currX
-  let st' = State { _pos = currX, _vel = currV }
-  returnA -< Right $ pic st'
+    x <- iPre x0 -< x' :: V2 Float
+    a <- arr (zero-) -< x :: V2 Float
+    v <- imIntegral v0 -< a :: V2 Float
+    x' <- imIntegral x0 -< v :: V2 Float
+  returnA -< State{ _pos = x', _vel = v }
+  where
+    x0 = view pos st0 :: V2 Float
+    v0 = view vel st0 :: V2 Float
 
 pic :: State -> Gloss.Picture
 pic State{..} = Gloss.pictures $
@@ -130,22 +149,14 @@ screenBoundX = screenWidth / 2
 screenBoundY :: Float
 screenBoundY = screenHeight / 2
 
--- keyPressed :: Gloss.Key -> a ->> Bool
--- keyPressed key = constM $ views envKeys (Set.member key)
+-- sample :: Show a => SF Double a -> IO ()
+-- sample = reactimate
+--   (return (1.0::Double))
+--   (\_ -> return (0.01, Nothing))
+--   (\_ x -> do { putStr ("\r" ++ show x) ; return False })
 
-accum :: HasTime t s => (t -> b -> a -> b) -> b -> Wire s e m a b
-accum f b = mkSF $ \s a ->
-  let b' = f (dtime s) b a
-  in  (b', accum f b')
-
-constM :: Monad m => m b -> Wire s e m a b
-constM m = mkGen_ . const $ liftM Right m
-
-select :: (Monoid s, Monad m)
-  => Wire s e m a (Either (Wire s e m a b) b) -> Wire s e m a b
-select w = mkGen $ \s a -> do
-  (eb, w') <- stepWire w s (Right a)
-  case eb of
-    Right (Left w'') -> stepWire w'' mempty (Right a)
-    Right (Right b)  -> return (Right b, select w')
-    Left e           -> return (Left e, select w')
+-- sampleOutput :: (a -> IO ()) -> SF Double a -> IO ()
+-- sampleOutput outFn = reactimate
+--   (return (1.0::Double))
+--   (\_ -> return (0.01, Nothing))
+--   (\_ x -> do { outFn x ; return False })
