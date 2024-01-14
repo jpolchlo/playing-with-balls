@@ -14,11 +14,11 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         A simple simulation to learn FRP with Netwire
+description:         A simple simulation to learn FRP with Yampa
 
 dependencies:
 - base >= 4.7 && < 5
-- netwire >= 5
+- Yampa >= 0.14
 - gloss >= 1.13
 - lens >= 5.2
 - transformers >= 0.5
